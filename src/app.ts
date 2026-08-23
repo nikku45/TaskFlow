@@ -3,6 +3,8 @@ import helmet from 'helmet';
 import cors from 'cors';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler.middleware';
+import { authenticateToken } from './middleware/auth.middleware';
+import { attachOrgContext } from './middleware/orgContext.middleware';
 import authRoutes from './modules/auth/auth.routes';
 
 /**
@@ -40,6 +42,16 @@ export function createApp(): Express {
 
   // API Routes
   app.use(`${env.API_BASE_PATH}/auth`, authRoutes);
+
+  // Diagnostic route (Phase 6 requirement for middleware verification)
+  app.get(
+    '/_debug/whoami',
+    authenticateToken,
+    attachOrgContext,
+    (req: Request, res: Response) => {
+      res.status(200).json({ auth: req.auth });
+    }
+  );
 
   // Centralized Error Handler (must be mounted last)
   app.use(errorHandler);
