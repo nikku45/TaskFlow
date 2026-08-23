@@ -78,6 +78,7 @@ services:
     name: taskflow-redis
     plan: free
     maxmemoryPolicy: noeviction
+    ipAllowList: []
 
 databases:
   # 4. PostgreSQL Database (Free Tier)
