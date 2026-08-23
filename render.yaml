@@ -16,7 +16,10 @@ services:
           name: taskflow-postgres
           property: connectionString
       - key: REDIS_URL
-        sync: false
+        fromService:
+          type: redis
+          name: taskflow-redis
+          property: connectionString
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -49,7 +52,10 @@ services:
           name: taskflow-postgres
           property: connectionString
       - key: REDIS_URL
-        sync: false
+        fromService:
+          type: redis
+          name: taskflow-redis
+          property: connectionString
       - key: JWT_ACCESS_SECRET
         fromService:
           type: web
@@ -67,10 +73,15 @@ services:
       - key: BREVO_SENDER_NAME
         value: TaskFlow Notification
 
+  # 3. Redis Service
+  - type: redis
+    name: taskflow-redis
+    plan: free
+    maxmemoryPolicy: noeviction
+
 databases:
-  # 3. PostgreSQL Database (Free Tier)
+  # 4. PostgreSQL Database (Free Tier)
   - name: taskflow-postgres
     databaseName: taskflow
     user: taskflow
     plan: free
-
