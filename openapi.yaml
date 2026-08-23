@@ -1,0 +1,566 @@
+openapi: 3.0.3
+info:
+  title: TaskFlow API
+  description: Multi-tenant project management backend — auth, projects, tasks, assignments, and background job status.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Projects
+  - name: Tasks
+  - name: Assignments
+  - name: Jobs
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user and organization
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User and organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and receive tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Exchange refresh token for a new access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: New access token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+                  expiresIn: { type: integer, example: 900 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke a refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '204': { description: Logged out }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /projects:
+    post:
+      tags: [Projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectInput'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    get:
+      tags: [Projects]
+      summary: List projects for the caller's organization
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated project list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjects'
+
+  /projects/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Projects]
+      summary: Get a project by ID
+      responses:
+        '200':
+          description: Project
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Projects]
+      summary: Update a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdateInput'
+      responses:
+        '200':
+          description: Updated project
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Projects]
+      summary: Delete a project (org_admin only)
+      responses:
+        '204': { description: Deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /projects/{id}/dashboard:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Projects]
+      summary: Task counts grouped by status for a project
+      responses:
+        '200':
+          description: Dashboard counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardCounts'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /projects/{projectId}/tasks:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tasks]
+      summary: Create a task in a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskInput' }
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      tags: [Tasks]
+      summary: List/filter tasks in a project
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/TaskStatus' }
+        - name: priority
+          in: query
+          schema: { $ref: '#/components/schemas/TaskPriority' }
+        - name: assigneeId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: dueDateFrom
+          in: query
+          schema: { type: string, format: date }
+        - name: dueDateTo
+          in: query
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated task list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedTasks' }
+
+  /tasks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [Tasks]
+      summary: Get a task by ID
+      responses:
+        '200':
+          description: Task
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Tasks]
+      summary: Update a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskUpdateInput' }
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      responses:
+        '204': { description: Deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /tasks/{id}/assign:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      tags: [Assignments]
+      summary: Assign a user to a task (triggers async email notification job)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Assignment created and notification job enqueued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssignmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /tasks/{id}/assign/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Assignments]
+      summary: Unassign a user from a task
+      responses:
+        '204': { description: Unassigned }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /jobs/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Jobs]
+      summary: Get background job status
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobStatus' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Missing/invalid credentials or token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Authenticated but not permitted (includes all cross-tenant access attempts)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Resource does not exist
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Conflicting state (duplicate email, duplicate assignment)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string, example: "Task not found" }
+        code: { type: string, example: "TASK_NOT_FOUND" }
+        details: { type: object, additionalProperties: true }
+      required: [error, code, details]
+
+    TaskStatus:
+      type: string
+      enum: [todo, in_progress, review, done]
+    TaskPriority:
+      type: string
+      enum: [low, medium, high, urgent]
+    Role:
+      type: string
+      enum: [org_admin, member]
+
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName, organizationName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 8 }
+        fullName: { type: string }
+        organizationName: { type: string }
+
+    RegisterResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string, format: email }
+            fullName: { type: string }
+        organization:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+
+    TokenPair:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, example: 900 }
+
+    ProjectInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+
+    ProjectUpdateInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+
+    Project:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orgId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    PaginatedProjects:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Project' }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    DashboardCounts:
+      type: object
+      properties:
+        projectId: { type: string, format: uuid }
+        counts:
+          type: object
+          properties:
+            todo: { type: integer }
+            in_progress: { type: integer }
+            review: { type: integer }
+            done: { type: integer }
+
+    TaskInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        dueDate: { type: string, format: date }
+
+    TaskUpdateInput:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        dueDate: { type: string, format: date }
+
+    Task:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        dueDate: { type: string, format: date, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    PaginatedTasks:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Task' }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    AssignmentResponse:
+      type: object
+      properties:
+        assignment:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            taskId: { type: string, format: uuid }
+            userId: { type: string, format: uuid }
+            assignedAt: { type: string, format: date-time }
+        jobId: { type: string }
+
+    JobStatus:
+      type: object
+      properties:
+        jobId: { type: string }
+        status: { type: string, enum: [pending, active, completed, failed] }
+        attemptsMade: { type: integer }
+        queuedAt: { type: string, format: date-time }
+        processedAt: { type: string, format: date-time, nullable: true }
+        failedReason: { type: string, nullable: true }

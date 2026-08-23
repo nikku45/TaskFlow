@@ -1,6 +1,9 @@
 import express, { Express, Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import path from 'path';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler.middleware';
 import { authenticateToken } from './middleware/auth.middleware';
@@ -9,6 +12,10 @@ import authRoutes from './modules/auth/auth.routes';
 import projectsRoutes from './modules/projects/projects.routes';
 import tasksRouter, { projectTasksRouter } from './modules/tasks/tasks.routes';
 import jobsRoutes from './modules/jobs/jobs.routes';
+
+// Load OpenAPI spec — resolve relative to project root (works from both src/ and dist/)
+const openapiPath = path.resolve(__dirname, '..', 'openapi.yaml');
+const openapiDocument = YAML.load(openapiPath);
 
 /**
  * Builds and configures the Express application instance.
@@ -59,6 +66,9 @@ export function createApp(): Express {
       res.status(200).json({ auth: req.auth });
     }
   );
+
+  // Swagger/OpenAPI documentation
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument));
 
   // Centralized Error Handler (must be mounted last)
   app.use(errorHandler);

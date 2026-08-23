@@ -39,11 +39,12 @@
     "rate-limit-redis": "^6.0.1",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@prisma/client": "^5.22.0",
+
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
