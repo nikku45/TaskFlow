@@ -7,6 +7,7 @@ import { authenticateToken } from './middleware/auth.middleware';
 import { attachOrgContext } from './middleware/orgContext.middleware';
 import authRoutes from './modules/auth/auth.routes';
 import projectsRoutes from './modules/projects/projects.routes';
+import tasksRouter, { projectTasksRouter } from './modules/tasks/tasks.routes';
 
 /**
  * Builds and configures the Express application instance.
@@ -44,6 +45,8 @@ export function createApp(): Express {
   // API Routes
   app.use(`${env.API_BASE_PATH}/auth`, authRoutes);
   app.use(`${env.API_BASE_PATH}/projects`, projectsRoutes);
+  app.use(`${env.API_BASE_PATH}/projects/:projectId/tasks`, projectTasksRouter);
+  app.use(`${env.API_BASE_PATH}/tasks`, tasksRouter);
 
   // Diagnostic route (Phase 6 requirement for middleware verification)
   app.get(
