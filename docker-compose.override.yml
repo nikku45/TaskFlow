@@ -1,0 +1,30 @@
+# docker-compose.override.yml — Dev overrides
+# Bind-mount source and run tsx watch instead of compiled output
+# So the agent can iterate without rebuilding the image every change.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./openapi.yaml:/app/openapi.yaml
+    command: >
+      sh -c "npx prisma migrate deploy && npx tsx watch src/server.ts"
+    environment:
+      NODE_ENV: development
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    command: ["npx", "tsx", "watch", "src/workers/email.worker.ts"]
+    environment:
+      NODE_ENV: development
