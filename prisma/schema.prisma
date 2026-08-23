@@ -1,0 +1,214 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS — exact values from the assignment (DATABASE.md §2)
+// ============================================================================
+
+/// Task status lifecycle: todo → in_progress → review → done
+enum TaskStatus {
+  todo
+  in_progress
+  review
+  done
+}
+
+/// Task priority levels
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+/// Organization member roles (RBAC)
+enum OrgRole {
+  org_admin
+  member
+}
+
+// ============================================================================
+// MODELS — per DATABASE.md §3, with CASCADE/RESTRICT per §4
+// ============================================================================
+
+/// Organizations table — root of tenancy
+model Organization {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  members  OrgMember[]
+  projects Project[]
+
+  @@map("organizations")
+}
+
+/// Users table — login credentials and identity
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  memberships    OrgMember[]
+  assignments    TaskAssignment[]
+  comments       Comment[]
+  refreshTokens  RefreshToken[]
+
+  @@map("users")
+}
+
+/// org_members — join table: user ↔ org, carries role
+/// UNIQUE (org_id, user_id) — a user has exactly one role per org
+model OrgMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      OrgRole  @default(member)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  /// CASCADE — deleting an org removes its membership records
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  /// CASCADE — a deleted user should not leave dangling membership rows
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  /// Support "which orgs does this user belong to" queries
+  @@index([userId])
+  /// Enforces one role per user per org; also primary lookup
+  @@unique([orgId, userId])
+  @@map("org_members")
+}
+
+/// Projects table — belongs to an organization
+model Project {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String    @map("org_id") @db.Uuid
+  name        String
+  description String?
+  /// Bonus: soft delete
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  /// RESTRICT — prevents accidental org deletion from silently wiping all project/task history
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  tasks        Task[]
+
+  // Indexes
+  /// Every project list/lookup is filtered by org — the core tenant-isolation filter
+  @@index([orgId])
+  @@map("projects")
+}
+
+/// Tasks table — belongs to a project (org reached transitively via project_id)
+/// Note: tasks does NOT carry org_id directly — per DECISIONS.md ADR-04
+model Task {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String       @map("project_id") @db.Uuid
+  title       String
+  description String?
+  status      TaskStatus   @default(todo)
+  priority    TaskPriority @default(medium)
+  dueDate     DateTime?    @map("due_date") @db.Date
+  /// Bonus: soft delete
+  deletedAt   DateTime?    @map("deleted_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  /// CASCADE — a task cannot exist without its parent project
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignments TaskAssignment[]
+  comments    Comment[]
+
+  // Indexes
+  /// Tasks are always listed/filtered within a project
+  @@index([projectId])
+  /// Required filter: filtering tasks by status
+  @@index([status])
+  /// Required filter: filtering tasks by priority
+  @@index([priority])
+  /// Required filter: due-date range filtering
+  @@index([dueDate])
+  /// Dashboard query: task counts grouped by status per project
+  @@index([projectId, status])
+  @@map("tasks")
+}
+
+/// task_assignments — links tasks to users with notification tracking
+/// UNIQUE (task_id, user_id) — prevents duplicate assignment
+model TaskAssignment {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId             String   @map("task_id") @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  /// Implementation column supporting ARCHITECTURE.md §16 consistency strategy
+  notificationStatus String   @default("pending") @map("notification_status")
+  assignedAt         DateTime @default(now()) @map("assigned_at")
+
+  // Relations
+  /// CASCADE — an assignment is meaningless once its task is gone
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  /// RESTRICT — prevents deleting a user who still has active assignments
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  // Indexes
+  /// Required filter: "filter tasks by assignee" joins through this
+  @@index([userId])
+  /// Prevents duplicate assignment rows; also indexes assignment lookups by task
+  @@unique([taskId, userId])
+  @@map("task_assignments")
+}
+
+/// Comments table — belongs to a task, authored by a user
+model Comment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  /// CASCADE — comments belong entirely to their task's lifecycle
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  /// RESTRICT — preserves comment history/authorship integrity
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  // Indexes
+  /// Fetching a task's comment thread
+  @@index([taskId])
+  @@map("comments")
+}
+
+/// refresh_tokens — supporting table for JWT refresh + revocation (SECURITY.md §A.4)
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  /// CASCADE — tokens are meaningless without the user
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  /// Support "revoke all tokens for user" (logout-all-devices bonus)
+  @@index([userId])
+  /// Fast lookup on refresh
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
