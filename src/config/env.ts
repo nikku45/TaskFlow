@@ -45,9 +45,12 @@ const envSchema = z.object({
   JOB_RETRY_ATTEMPTS: z.coerce.number().int().positive().default(3),
   JOB_BACKOFF_BASE_MS: z.coerce.number().int().positive().default(1000),
 
-  // --- Mock Email Provider ---
+  // --- Email Provider (Brevo / Mock) ---
   MOCK_EMAIL_FROM: z.string().default('noreply@taskflow.local'),
   EMAIL_GLOBAL_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(50),
+  BREVO_API_KEY: z.string().optional(),
+  BREVO_SENDER_EMAIL: z.string().optional(),
+  BREVO_SENDER_NAME: z.string().default('TaskFlow Notification'),
 
   // --- CORS ---
   CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:5173,http://localhost:3000'),

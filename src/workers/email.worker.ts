@@ -4,7 +4,7 @@ import { logger } from '../config/logger';
 import { prisma } from '../database/prisma';
 import { redisConnectionOptions } from '../queues/connection';
 import { EmailJobPayload } from '../queues/email.queue';
-import { mockEmailService } from './mockEmailService';
+import { emailService } from './emailService';
 
 /**
  * Worker processor function.
@@ -43,8 +43,8 @@ async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> {
     data: { notificationStatus: 'active' },
   });
 
-  // Call mock email delivery
-  await mockEmailService.sendAssignmentEmail({
+  // Call email delivery service (Brevo API or Mock based on BREVO_API_KEY)
+  await emailService.sendAssignmentEmail({
     to: assignment.user.email,
     assigneeName: assignment.user.fullName,
     taskTitle: assignment.task.title,
