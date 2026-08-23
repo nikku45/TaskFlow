@@ -21,9 +21,19 @@ export class AuthRepository {
     organizationName: string
   ): Promise<{ user: User; organization: Organization }> {
     return prisma.$transaction(async (tx) => {
-      const organization = await tx.organization.create({
-        data: { name: organizationName },
+      // Look up existing organization by name (case-insensitive)
+      let organization = await tx.organization.findFirst({
+        where: { name: { equals: organizationName, mode: 'insensitive' } },
       });
+
+      let role: OrgRole = OrgRole.member;
+
+      if (!organization) {
+        organization = await tx.organization.create({
+          data: { name: organizationName },
+        });
+        role = OrgRole.org_admin;
+      }
 
       const user = await tx.user.create({
         data: {
@@ -37,7 +47,7 @@ export class AuthRepository {
         data: {
           orgId: organization.id,
           userId: user.id,
-          role: OrgRole.org_admin,
+          role,
         },
       });
 
