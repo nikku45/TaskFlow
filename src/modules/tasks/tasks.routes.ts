@@ -3,6 +3,7 @@ import { asyncHandler } from '../../common/asyncHandler';
 import { authenticateToken } from '../../middleware/auth.middleware';
 import { attachOrgContext } from '../../middleware/orgContext.middleware';
 import { tasksController } from './tasks.controller';
+import { assignmentsController } from './assignments.controller';
 
 // Router for nested /projects/:projectId/tasks routes
 export const projectTasksRouter = Router({ mergeParams: true });
@@ -17,5 +18,9 @@ tasksRouter.get('/', asyncHandler(tasksController.list));
 tasksRouter.get('/:id', asyncHandler(tasksController.getById));
 tasksRouter.patch('/:id', asyncHandler(tasksController.update));
 tasksRouter.delete('/:id', asyncHandler(tasksController.delete));
+
+// Task Assignment endpoints
+tasksRouter.post('/:id/assign', asyncHandler(assignmentsController.assign));
+tasksRouter.delete('/:id/assign/:userId', asyncHandler(assignmentsController.unassign));
 
 export default tasksRouter;
