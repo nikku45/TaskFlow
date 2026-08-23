@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler.middleware';
+import authRoutes from './modules/auth/auth.routes';
 
 /**
  * Builds and configures the Express application instance.
@@ -36,6 +37,9 @@ export function createApp(): Express {
   app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // API Routes
+  app.use(`${env.API_BASE_PATH}/auth`, authRoutes);
 
   // Centralized Error Handler (must be mounted last)
   app.use(errorHandler);

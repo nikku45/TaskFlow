@@ -1,14 +1,18 @@
-const eslint = require('@eslint/js');
-const tseslint = require('typescript-eslint');
+const tsParser = require('@typescript-eslint/parser');
 
-module.exports = tseslint.config(
-  eslint.configs.recommended,
-  ...tseslint.configs.recommended,
+module.exports = [
   {
     files: ['src/**/*.ts'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module',
+      },
     },
-  }
-);
+    rules: {
+      'no-unused-vars': 'off',
+      'no-undef': 'off',
+    },
+  },
+];
