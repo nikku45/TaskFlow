@@ -83,7 +83,7 @@ describe('Multi-Tenant Cross-Tenant Security Isolation (Integration)', () => {
     const res = await request
       .post('/api/v1/tasks/task-org-a-id/assign')
       .set('Authorization', `Bearer ${tokenOrgB}`)
-      .send({ userId: '00000000-0000-0000-0000-000000000001' });
+      .send({ userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' });
 
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('FORBIDDEN');
