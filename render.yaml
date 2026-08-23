@@ -1,8 +1,9 @@
 services:
-  # 1. Express API Web Service
+  # 1. Express API Web Service (Free Tier)
   - type: web
     name: taskflow-api
     runtime: node
+    plan: free
     buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && node dist/server.js
     envVars:
@@ -15,10 +16,7 @@ services:
           name: taskflow-postgres
           property: connectionString
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: taskflow-redis
-          property: connectionString
+        sync: false
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -36,10 +34,11 @@ services:
       - key: BREVO_SENDER_NAME
         value: TaskFlow Notification
 
-  # 2. Background Queue Worker Service
-  - type: worker
+  # 2. Background Queue Worker Service (Free Web Service Tier)
+  - type: web
     name: taskflow-worker
     runtime: node
+    plan: free
     buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
     startCommand: node dist/workers/email.worker.js
     envVars:
@@ -50,10 +49,7 @@ services:
           name: taskflow-postgres
           property: connectionString
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: taskflow-redis
-          property: connectionString
+        sync: false
       - key: JWT_ACCESS_SECRET
         fromService:
           type: web
@@ -72,7 +68,9 @@ services:
         value: TaskFlow Notification
 
 databases:
-  # 3. PostgreSQL Database
+  # 3. PostgreSQL Database (Free Tier)
   - name: taskflow-postgres
     databaseName: taskflow
     user: taskflow
+    plan: free
+
