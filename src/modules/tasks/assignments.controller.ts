@@ -5,7 +5,7 @@ import { assignmentsService, AssignmentsService } from './assignments.service';
 
 const assignBodySchema = z
   .object({
-    userId: z.string().uuid('Invalid userId format'),
+    userId: z.string().min(1, 'userId is required'),
   })
   .strict();
 

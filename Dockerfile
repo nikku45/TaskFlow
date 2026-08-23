@@ -3,11 +3,14 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
+# Install openssl for Prisma CLI operations
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies first for better caching
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 # Generate Prisma client
 RUN npx prisma generate
