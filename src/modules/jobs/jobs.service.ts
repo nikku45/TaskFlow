@@ -6,7 +6,7 @@ export type AssignmentJobStatus = 'pending' | 'active' | 'completed' | 'failed';
 
 export class JobsService {
   async getJobStatus(jobId: string, orgId: string) {
-    const job = await Job.fromId<EmailJobPayload>(emailQueue, jobId);
+    const job = await Job.fromId<EmailJobPayload>(emailQueue as any, jobId);
     if (!job) {
       throw new NotFoundError('Job not found', 'JOB_NOT_FOUND');
     }
