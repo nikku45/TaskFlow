@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "TaskStatus" AS ENUM ('todo', 'in_progress', 'review', 'done');
 
 -- CreateEnum
