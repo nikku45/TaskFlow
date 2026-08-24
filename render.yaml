@@ -4,8 +4,8 @@ services:
     name: taskflow-api
     runtime: node
     plan: free
-    buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && node dist/server.js
+    buildCommand: npm install --legacy-peer-deps && npx prisma@5.22.0 generate && npm run build
+    startCommand: npx prisma@5.22.0 migrate deploy && node dist/server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -42,7 +42,7 @@ services:
     name: taskflow-worker
     runtime: node
     plan: free
-    buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
+    buildCommand: npm install --legacy-peer-deps && npx prisma@5.22.0 generate && npm run build
     startCommand: node dist/workers/email.worker.js
     envVars:
       - key: NODE_ENV
