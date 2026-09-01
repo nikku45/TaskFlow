@@ -1,3 +1,4 @@
+import * as http from 'http';
 import { Worker, QueueEvents, Job } from 'bullmq';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
@@ -104,3 +105,14 @@ emailWorker.on('failed', async (job, err) => {
 });
 
 logger.info(`🚀 Email worker running on queue "${env.EMAIL_QUEUE_NAME}"`);
+
+// Dummy HTTP server to satisfy Render's web service health checks
+const port = process.env.PORT || 10000;
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Worker is alive\n');
+});
+
+server.listen(port, () => {
+  logger.info(`🌐 Dummy health-check server running on port ${port}`);
+});
